@@ -230,13 +230,13 @@ def st_ui():
 		# print(ind_to_ages)
 		time_event = time_event
 
-	upper_mantle_thick = st.sidebar.slider('Upper Mantle Thickness Uncertainty', -20,20,0)
+	upper_mantle_thick = st.sidebar.slider('Upper Mantle Thickness Uncertainty (%)', -20,20,0)
 	upper_mantle_thick /= 100
 
-	crust_thickness = st.sidebar.slider('Crust Thickness Uncertainty', -20,20,0)
+	crust_thickness = st.sidebar.slider('Crust Thickness Uncertainty (%)', -20,20,0)
 	crust_thickness /= 100
 
-	upper_crust_RHP = st.sidebar.slider('Crust RHP Uncertainty', -50,50,0)
+	upper_crust_RHP = st.sidebar.slider('Crust RHP Uncertainty (%)', -50,50,0)
 	upper_crust_RHP /= 100
 
 
