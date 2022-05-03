@@ -157,6 +157,10 @@ def create_hv_plot(da, well_display, property, contours_display):
         colormap_to_use = 'RdBu'
         clipping = {'NaN': '#00000000'}
     
+    else:
+        colormap_to_use = 'Plasma'
+        clipping = {'NaN': '#00000000'}
+    
     
     hv.extension('bokeh', logo=False)
     hv.opts.defaults(hv.opts.Image(cmap=colormap_to_use,
@@ -191,8 +195,10 @@ def create_hv_plot(da, well_display, property, contours_display):
         contours = hv.operation.contours(hv_redim, levels= np.arange(np.min(da), np.max(da) , 20))
     elif contours_display and property == 'Depth':
         contours = hv.operation.contours(hv_redim, levels= np.arange(np.min(da), np.max(da) , 500))
-
     else:
+        contours = hv.operation.contours(hv_redim, levels= 10)
+
+    if not contours_display:
         contours = hv.operation.contours(hv_redim, levels=0)
     if well_display:
         hv_points = hv.Points({'x': [point[0] for point in coords], 'y': [point[1] for point in coords]})

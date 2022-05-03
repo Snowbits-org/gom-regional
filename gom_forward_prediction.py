@@ -178,8 +178,8 @@ def st_ui():
 	start = time.time()
 
 	layers_dict = {0: "Layer 1 - Plio-Pleistocene",
-						1: "Layer 2 - Paleogene",
-						2: "Layer 3 - Miocene",
+						1: "Layer 2 - Miocene",
+						2: "Layer 3 - Paleogene",
 						3: "Layer 4 - Late Cretaceous",
 						4: "Layer 5 - Mid Jurassic to Mid Cretaceous"
 						}
@@ -218,7 +218,7 @@ def st_ui():
 
 	time_event = 45
 
-	property_list = ['Standard Thermal Stress', 'Temperature', 'Depth']
+	property_list = ['Standard Thermal Stress', 'Temperature', 'Depth', 'Upper Crust RHP (uW/m3)', 'Crust Thickness (m)', 'Upper mantle thickness (m)']
 	property = st.sidebar.selectbox("Property selection", property_list)
 
 	if option == 'Layer 5 - Mid Jurassic to Mid Cretaceous' and property == 'Standard Thermal Stress':
@@ -314,7 +314,10 @@ def st_ui():
 
 	smoothed_mat = np.nan_to_num(smoothed_mat, nan=-9999)
 
-	property_dict = {'Standard Thermal Stress' : smoothed_mat, 'Temperature' : smoothed_temp, 'Depth' : array_to_compute[index].reshape((ny, nx))}
+	property_dict = {'Standard Thermal Stress' : smoothed_mat, 'Temperature' : smoothed_temp, 'Depth' : array_to_compute[index].reshape((ny, nx)),
+					'Upper Crust RHP (uW/m3)' : array_to_compute[-4].reshape((ny, nx)), 
+					'Crust Thickness (m)' : array_to_compute[-5].reshape((ny, nx)), 
+					'Upper mantle thickness (m)' : array_to_compute[-2].reshape((ny, nx))}
 
 	da = sth.create_xarray(property_dict[property], 
 							xmin=affine[2],
