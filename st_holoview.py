@@ -148,15 +148,12 @@ def create_hv_plot(da, well_display, property, contours_display):
     if property == 'Standard Thermal Stress':
         colormap_to_use = LinearSegmentedColormap('sts', segmentdata=cdict, N=256)
         clipping = {'NaN': '#00000000', 'min': 'blue', 'max': 'gray'}
-
     elif property == "Temperature":
         colormap_to_use = 'Plasma'
         clipping = {'NaN': '#00000000'}
-    
     elif property == "Depth":
         colormap_to_use = 'RdBu'
         clipping = {'NaN': '#00000000'}
-    
     else:
         colormap_to_use = 'Plasma'
         clipping = {'NaN': '#00000000'}
