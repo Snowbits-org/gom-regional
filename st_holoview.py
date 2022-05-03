@@ -144,6 +144,9 @@ def create_hv_plot(da, well_display, property, contours_display):
     
     key_dims = ['x', 'y']
     value_dimension = 'value'
+
+    colormap_to_use = 'Plasma'
+    clipping = {'NaN': '#00000000'}
     
     if property == 'Standard Thermal Stress':
         colormap_to_use = LinearSegmentedColormap('sts', segmentdata=cdict, N=256)
@@ -154,9 +157,7 @@ def create_hv_plot(da, well_display, property, contours_display):
     elif property == "Depth":
         colormap_to_use = 'RdBu'
         clipping = {'NaN': '#00000000'}
-    else:
-        colormap_to_use = 'Plasma'
-        clipping = {'NaN': '#00000000'}
+        
     
     
     hv.extension('bokeh', logo=False)
