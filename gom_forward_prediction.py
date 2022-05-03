@@ -15,7 +15,6 @@ import st_holoview as sth
 import json
 import holoviews as hv
 import pickle
-_lock = RendererAgg.lock
 
 
 cdict = {'red': [(0.0, 0.0078, 0.0078),
@@ -138,10 +137,11 @@ def load_GOM_data(path):
 	temp_model = NN(path + 'trained_model_Temperature.h5', 'Temperature', 'C')
 	transform_data = np.load(path + 'transform.npz')
 	
-	nn_inputs = np.load(path + 'nn_inputs.npz')
-	project_affine = nn_inputs['affine']
+	project_affine = np.load(path + 'project_affine.npy')
 
-	data_array = np.load(path + 'mapstack_V4.npy')
+	d = np.load(path + 'mapstack.npz')
+	data_array = d['mapstack']
+
 
 	data_array[data_array<-9000] = np.nan
 
@@ -158,212 +158,179 @@ def load_GOM_data(path):
 	
 	return transform_data, mat_model, temp_model, history_model, project_affine, data_array, ro_sts, depths, lithos
 
+
+
 ##################################################################################################
-@st.cache
-def data_loading():
-	data_array = np.load('data/Kosmos_mapstack_v3.npy')
-	data_array = data_array.reshape((data_array.shape[0], data_array.shape[1] * data_array.shape[2]))
+def st_ui():
+	st.set_page_config(layout = "wide")
+
+	# Load NN models and transform
+	path = 'data/'
+	transform_data, mat_model, temp_model, history_model, affine, data_array, ro_sts, depths, lithos = load_GOM_data(path)
+	print(affine)
+	dx = affine[6]
+	dy = affine[7]
+	nb_layers = 5
+	ny = 492
+	nx = 443
 
 
-	#remove zero thickness cells
-	for i in range(nb_layers):
-		thickness = data_array[i+1] - data_array[i]
-		thickness[thickness < 1] = 10.0
-		data_array[i+1] = data_array[i] + thickness
-	
-	f = 'data/STS_ezRo.csv'
-	ro_sts = pd.read_csv(f, sep=';')
+	start = time.time()
 
-	with open("data/calibration_result_newMantle_new_wells_03_2022.json", 'rb') as f:
-		wells = json.load(f)
-	x_vals = [int(w['I']) for w in wells['Wells']]
-	y_vals = [int(w['J']) for w in wells['Wells']]
-	names = [w['Name'] for w in wells['Wells']]
-	names2 = [w['Name'] + '_' + str(u) for u,w in enumerate(wells['Wells'])]
-
-	
-
-	oxfordian = np.load('data/UEP/Oxfordian.npy')
-	ox_scalar = np.load('data/UEP/Oxfordian UEP scalar AOI.npy')
-	kimmeridgian = np.load('data/UEP/Kimmeridgian.npy')
-	kimm_scalar = np.load('data/UEP/Kimmeridgian-Berriaisian UEP scalar AOI.npy')
-	valanginian = np.load('data/UEP/Valanginian.npy')
-	val_scalar = np.ones((kimm_scalar.shape[0], kimm_scalar.shape[1]))
-
-	depths = data_array[:16].reshape((16, ny, nx))
-	lithos = data_array[16:29].reshape((13, ny, nx))
-	
-	return data_array, ro_sts, wells, x_vals, y_vals, names, names2, oxfordian, ox_scalar, kimmeridgian, kimm_scalar, valanginian, val_scalar, depths, lithos
+	layers_dict = {0: "Layer 1 - Plio-Pleistocene",
+						1: "Layer 2 - Paleogene",
+						2: "Layer 3 - Miocene",
+						3: "Layer 4 - Late Cretaceous",
+						4: "Layer 5 - Mid Jurassic to Mid Cretaceous"
+						}
+	layers_list = [layers_dict[i] for i in range(0,5)]
 
 
-# if __name__ == '__main__':
-st.set_page_config(layout = "wide")
+	ind_to_ages = np.load('data/ages_keys.npy')
+	history = None
+	st.title('Regional Gulf Coast model')
 
-# Load NN models and transform
-path = 'data/'
-transform_data, mat_model, temp_model, history_model, affine, data_array, ro_sts, depths, lithos = load_GOM_data(path)
-print(affine)
-dx = affine[6]
-dy = affine[7]
-nb_layers = 5
-ny = 492
-nx = 443
+	if 'mantle' not in st.session_state:
+		st.session_state.mantle = 0 * 1000
 
+	if 'depth_uncertainty' not in st.session_state:
+		st.session_state.depth_uncertainty = -100
 
-start = time.time()
+	if 'crust_thickness' not in st.session_state:
+		st.session_state.crust_thickness = -100
 
-layers_dict = {0: "Layer 1 - Plio-Pleistocene",
-					1: "Layer 2 - Paleogene",
-					2: "Layer 3 - Miocene",
-					3: "Layer 4 - Late Cretaceous",
-					4: "Layer 5 - Mid Jurassic to Mid Cretaceous"
-					}
-layers_list = [layers_dict[i] for i in range(0,5)]
+	if 'upper_crust_RHP' not in st.session_state:
+		st.session_state.upper_crust_RHP = -100
 
+	if 'temperature' not in st.session_state:
+		st.session_state.temperature = 0
 
-ind_to_ages = np.load('data/ages_keys.npy')
-history = None
-st.title('Regional Gulf Coast model')
+	if 'maturity' not in st.session_state:
+		st.session_state.maturity = 0
 
-if 'mantle' not in st.session_state:
-	st.session_state.mantle = 0 * 1000
+	if 'history' not in st.session_state:
+		st.session_state.history = 0
 
-if 'depth_uncertainty' not in st.session_state:
-	st.session_state.depth_uncertainty = -100
+	if 'layer_select' not in st.session_state:
+		st.session_state.layer_select = 0
 
-if 'crust_thickness' not in st.session_state:
-	st.session_state.crust_thickness = -100
+	option = st.sidebar.selectbox("Layer selection", layers_list)
 
-if 'upper_crust_RHP' not in st.session_state:
-	st.session_state.upper_crust_RHP = -100
+	time_event = 45
 
-if 'temperature' not in st.session_state:
-	st.session_state.temperature = 0
+	property_list = ['Standard Thermal Stress', 'Temperature', 'Depth']
+	property = st.sidebar.selectbox("Property selection", property_list)
 
-if 'maturity' not in st.session_state:
-	st.session_state.maturity = 0
+	if option == 'Layer 5 - Mid Jurassic to Mid Cretaceous' and property == 'Standard Thermal Stress':
+		# age_select = st.sidebar.slider("Time section", -np.max(ind_to_ages[:,1]),0.0,0.0)
+		age_select = st.sidebar.select_slider("Time selection", ind_to_ages[:,1], value = 0.0)
+		# print(age_select)
+		time_event = np.where(ind_to_ages[:,1] == age_select)[0]
+		# print(time_event)
+		# print(ind_to_ages)
+		time_event = time_event
 
-if 'history' not in st.session_state:
-	st.session_state.history = 0
+	upper_mantle_thick = st.sidebar.slider('Upper Mantle Thickness Uncertainty', -20,20,0)
+	upper_mantle_thick /= 100
 
-if 'layer_select' not in st.session_state:
-	st.session_state.layer_select = 0
+	crust_thickness = st.sidebar.slider('Crust Thickness Uncertainty', -20,20,0)
+	crust_thickness /= 100
 
-option = st.sidebar.selectbox("Layer selection", layers_list)
-
-time_event = 45
-
-property_list = ['Standard Thermal Stress', 'Temperature', 'Depth']
-property = st.sidebar.selectbox("Property selection", property_list)
-
-if option == 'Layer 5 - Mid Jurassic to Mid Cretaceous' and property == 'Standard Thermal Stress':
-	# age_select = st.sidebar.slider("Time section", -np.max(ind_to_ages[:,1]),0.0,0.0)
-	age_select = st.sidebar.select_slider("Time selection", ind_to_ages[:,1], value = 0.0)
-	# print(age_select)
-	time_event = np.where(ind_to_ages[:,1] == age_select)[0]
-	# print(time_event)
-	# print(ind_to_ages)
-	time_event = time_event
-
-upper_mantle_thick = st.sidebar.slider('Upper Mantle Thickness Uncertainty', -20,20,0)
-upper_mantle_thick /= 100
-
-crust_thickness = st.sidebar.slider('Crust Thickness Uncertainty', -20,20,0)
-crust_thickness /= 100
-
-upper_crust_RHP = st.sidebar.slider('Crust RHP Uncertainty', -50,50,0)
-upper_crust_RHP /= 100
+	upper_crust_RHP = st.sidebar.slider('Crust RHP Uncertainty', -50,50,0)
+	upper_crust_RHP /= 100
 
 
-depth_uncertainty = st.sidebar.slider('Depth Uncertainty (%). Default = 0%', -10,10,0)
-depth_uncertainty /= 100
+	depth_uncertainty = st.sidebar.slider('Depth Uncertainty (%). Default = 0%', -10,10,0)
+	depth_uncertainty /= 100
 
-update_display = False
+	update_display = False
 
-array_to_compute = deepcopy(data_array)
-# array_to_compute[-1,:] = 4.0 * np.ones(data_array.shape[1],)
-update_wells = False
-if upper_mantle_thick != st.session_state.mantle or \
-	depth_uncertainty != st.session_state.depth_uncertainty or \
-	crust_thickness != st.session_state.crust_thickness or \
-	upper_crust_RHP != st.session_state.upper_crust_RHP or \
-	history != st.session_state.history or \
-	option != st.session_state.layer_select:
+	array_to_compute = deepcopy(data_array)
+	# array_to_compute[-1,:] = 4.0 * np.ones(data_array.shape[1],)
+	update_wells = False
+	if upper_mantle_thick != st.session_state.mantle or \
+		depth_uncertainty != st.session_state.depth_uncertainty or \
+		crust_thickness != st.session_state.crust_thickness or \
+		upper_crust_RHP != st.session_state.upper_crust_RHP or \
+		history != st.session_state.history or \
+		option != st.session_state.layer_select:
 
-	array_to_compute[-2,:] *= (1 + upper_mantle_thick)
-	array_to_compute[-4,:] *= (1 + upper_crust_RHP)
-	array_to_compute[-5,:] *= (1 + crust_thickness)
+		array_to_compute[-2,:] *= (1 + upper_mantle_thick)
+		array_to_compute[-4,:] *= (1 + upper_crust_RHP)
+		array_to_compute[-5,:] *= (1 + crust_thickness)
 
-	for i in range(1, nb_layers + 1):
-		array_to_compute[i,:] *= (1 + depth_uncertainty)
-	array_to_compute = array_to_compute.reshape((array_to_compute.shape[0], nx*ny))
-	depths = data_array[:6]
-	input_vectors = prepare_vector(transform_data, data_array = array_to_compute)
-	temperature, maturity = compute(input_vectors, mat_model, temp_model)
-	if time_event != 45:
-		history = compute_history(input_vectors, history_model)
-		print("HISTORY", history.shape)
-		
-	st.session_state.mantle = upper_mantle_thick
-	st.session_state.depth_uncertainty = depth_uncertainty
-	st.session_state.temperature = temperature
-	st.session_state.maturity = maturity
-	st.session_state.layer_select = option
-	st.session_state.history = history
+		for i in range(1, nb_layers + 1):
+			array_to_compute[i,:] *= (1 + depth_uncertainty)
+		array_to_compute = array_to_compute.reshape((array_to_compute.shape[0], nx*ny))
+		depths = data_array[:6]
+		input_vectors = prepare_vector(transform_data, data_array = array_to_compute)
+		temperature, maturity = compute(input_vectors, mat_model, temp_model)
+		if time_event != 45:
+			history = compute_history(input_vectors, history_model)
+			print("HISTORY", history.shape)
+			
+		st.session_state.mantle = upper_mantle_thick
+		st.session_state.depth_uncertainty = depth_uncertainty
+		st.session_state.temperature = temperature
+		st.session_state.maturity = maturity
+		st.session_state.layer_select = option
+		st.session_state.history = history
 
-	update_display = True
-	update_wells = True
+		update_display = True
+		update_wells = True
 
 
-temperature = st.session_state.temperature
-maturity = st.session_state.maturity
-option = st.session_state.layer_select
-history = st.session_state.history
-for k, it in layers_dict.items():
-	if option == it:
-		index = k
-try:
-	print(history[100000,44])
-except:
-	pass
+	temperature = st.session_state.temperature
+	maturity = st.session_state.maturity
+	option = st.session_state.layer_select
+	history = st.session_state.history
+	for k, it in layers_dict.items():
+		if option == it:
+			index = k
+	try:
+		print(history[100000,44])
+	except:
+		pass
 
-print("Done", time.time() - start)
+	print("Done", time.time() - start)
 
-# Get temperature and maturity grids
-new_temperature_lyr = deepcopy(temperature[:,index].reshape((ny, nx)))
+	# Get temperature and maturity grids
+	new_temperature_lyr = deepcopy(temperature[:,index].reshape((ny, nx)))
 
-#Convert EasyRo to STS
-if time_event == 45:
-	sts = np.interp(maturity[:,index]/100, ro_sts['ezRo'], ro_sts['sts'])
-else:
-	sts = np.interp(history[:,time_event]/100, ro_sts['ezRo'], ro_sts['sts'])
-new_maturity_lyr = deepcopy(sts.reshape((ny, nx)))
+	#Convert EasyRo to STS
+	if time_event == 45:
+		sts = np.interp(maturity[:,index]/100, ro_sts['ezRo'], ro_sts['sts'])
+	else:
+		sts = np.interp(history[:,time_event]/100, ro_sts['ezRo'], ro_sts['sts'])
+	new_maturity_lyr = deepcopy(sts.reshape((ny, nx)))
 
-smoothed_mat =new_maturity_lyr
-smoothed_temp = new_temperature_lyr
-well_display = st.sidebar.checkbox('Display location of wells used for calibration', value=True)
-contours_display = st.sidebar.checkbox('Display contours', value=True)
+	smoothed_mat =new_maturity_lyr
+	smoothed_temp = new_temperature_lyr
+	well_display = st.sidebar.checkbox('Display location of wells used for calibration', value=True)
+	contours_display = st.sidebar.checkbox('Display contours', value=True)
 
-xp = np.linspace(0, nx+1, nx)
-yp = np.linspace(0, ny+1, ny)
+	xp = np.linspace(0, nx+1, nx)
+	yp = np.linspace(0, ny+1, ny)
 
-smoothed_mat = np.nan_to_num(smoothed_mat, nan=-9999)
+	smoothed_mat = np.nan_to_num(smoothed_mat, nan=-9999)
 
-property_dict = {'Standard Thermal Stress' : smoothed_mat, 'Temperature' : smoothed_temp, 'Depth' : array_to_compute[index].reshape((ny, nx))}
+	property_dict = {'Standard Thermal Stress' : smoothed_mat, 'Temperature' : smoothed_temp, 'Depth' : array_to_compute[index].reshape((ny, nx))}
 
-da = sth.create_xarray(property_dict[property], 
-						xmin=affine[2],
-						ymax = affine[5], 
-						nx = nx,
-						ny = ny,
-						dx = dx,
-						dy = dy)
+	da = sth.create_xarray(property_dict[property], 
+							xmin=affine[2],
+							ymax = affine[5], 
+							nx = nx,
+							ny = ny,
+							dx = dx,
+							dy = dy)
 
-# if 'rxy' not in st.session_state:
-# 	st.session_state.rxy = None
+	# if 'rxy' not in st.session_state:
+	# 	st.session_state.rxy = None
 
-hv_plot = sth.create_hv_plot(da, well_display, property, contours_display)
-# st.session_state.rxy = rxy
+	hv_plot = sth.create_hv_plot(da, well_display, property, contours_display)
+	# st.session_state.rxy = rxy
 
-st.bokeh_chart(hv.render(hv_plot, backend='bokeh'))
+	st.bokeh_chart(hv.render(hv_plot, backend='bokeh'))
 
+if __name__ == "__main__":
+	st_ui()
