@@ -213,6 +213,7 @@ def st_ui():
 
 	if 'layer_select' not in st.session_state:
 		st.session_state.layer_select = 0
+	
 
 	option = st.sidebar.selectbox("Layer selection", layers_list)
 
@@ -247,16 +248,10 @@ def st_ui():
 
 	array_to_compute = deepcopy(data_array)
 
-	print(upper_mantle_thick, st.session_state.mantle)
-	print(depth_uncertainty , st.session_state.depth_uncertainty)
-	print(crust_thickness , st.session_state.crust_thickness)
-	print(upper_crust_RHP , st.session_state.upper_crust_RHP)
-	print(option , st.session_state.layer_select)
-
 	if upper_mantle_thick != st.session_state.mantle or \
 		depth_uncertainty != st.session_state.depth_uncertainty or \
 		crust_thickness != st.session_state.crust_thickness or \
-		upper_crust_RHP != st.session_state.upper_crust_RHP:
+		upper_crust_RHP != st.session_state.upper_crust_RHP: 
 
 		array_to_compute[-2,:] *= (1 + upper_mantle_thick)
 		array_to_compute[-4,:] *= (1 + upper_crust_RHP)
@@ -268,11 +263,9 @@ def st_ui():
 		depths = data_array[:6]
 		input_vectors = prepare_vector(transform_data, data_array = array_to_compute)
 		temperature, maturity = compute(input_vectors, mat_model, temp_model)
-		if time_event != 45:
-			history = compute_history(input_vectors, history_model)
-			print("HISTORY", history.shape)
-		else:
-			history = None
+		history = compute_history(input_vectors, history_model)
+		print("HISTORY", history.shape)
+
 			
 		st.session_state.mantle = upper_mantle_thick
 		st.session_state.depth_uncertainty = depth_uncertainty
