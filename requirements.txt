@@ -16,3 +16,4 @@ tensorflow
 scipy
 openpyxl
 fiona
+bokeh==2.4.1
