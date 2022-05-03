@@ -187,11 +187,11 @@ def st_ui():
 
 
 	ind_to_ages = np.load('data/ages_keys.npy')
-	history = None
+
 	st.title('Regional Gulf Coast model')
 
 	if 'mantle' not in st.session_state:
-		st.session_state.mantle = 0 * 1000
+		st.session_state.mantle = -100
 
 	if 'depth_uncertainty' not in st.session_state:
 		st.session_state.depth_uncertainty = -100
@@ -246,14 +246,17 @@ def st_ui():
 	update_display = False
 
 	array_to_compute = deepcopy(data_array)
-	# array_to_compute[-1,:] = 4.0 * np.ones(data_array.shape[1],)
-	update_wells = False
+
+	print(upper_mantle_thick, st.session_state.mantle)
+	print(depth_uncertainty , st.session_state.depth_uncertainty)
+	print(crust_thickness , st.session_state.crust_thickness)
+	print(upper_crust_RHP , st.session_state.upper_crust_RHP)
+	print(option , st.session_state.layer_select)
+
 	if upper_mantle_thick != st.session_state.mantle or \
 		depth_uncertainty != st.session_state.depth_uncertainty or \
 		crust_thickness != st.session_state.crust_thickness or \
-		upper_crust_RHP != st.session_state.upper_crust_RHP or \
-		history != st.session_state.history or \
-		option != st.session_state.layer_select:
+		upper_crust_RHP != st.session_state.upper_crust_RHP:
 
 		array_to_compute[-2,:] *= (1 + upper_mantle_thick)
 		array_to_compute[-4,:] *= (1 + upper_crust_RHP)
@@ -268,6 +271,8 @@ def st_ui():
 		if time_event != 45:
 			history = compute_history(input_vectors, history_model)
 			print("HISTORY", history.shape)
+		else:
+			history = None
 			
 		st.session_state.mantle = upper_mantle_thick
 		st.session_state.depth_uncertainty = depth_uncertainty
@@ -275,6 +280,8 @@ def st_ui():
 		st.session_state.maturity = maturity
 		st.session_state.layer_select = option
 		st.session_state.history = history
+		st.session_state.crust_thickness = crust_thickness
+		st.session_state.upper_crust_RHP = upper_crust_RHP
 
 		update_display = True
 		update_wells = True
@@ -282,7 +289,6 @@ def st_ui():
 
 	temperature = st.session_state.temperature
 	maturity = st.session_state.maturity
-	option = st.session_state.layer_select
 	history = st.session_state.history
 	for k, it in layers_dict.items():
 		if option == it:
